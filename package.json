@@ -12,6 +12,7 @@
   "type": "module",
   "description": "",
   "dependencies": {
+    "@arcjet/node": "^1.0.0-alpha.34",
     "dotenv": "^16.4.7",
     "ejs": "^3.1.10",
     "express": "^4.21.2",

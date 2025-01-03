@@ -2,6 +2,7 @@ import express from 'express';
 import SpotifyWebApi from 'spotify-web-api-node';
 import dotenv from 'dotenv';
 import session from 'express-session';
+import arcjet, {detectBot, shield, fixedWindow} from '@arcjet/node';
 dotenv.config();
 
 const app = express();
@@ -31,6 +32,51 @@ const checkAuth = (req, res, next) => {
   }
   next();
 };
+
+const aj = arcjet({
+  key: process.env.ARCJET_KEY,
+  rules: [
+    shield({
+      mode: "LIVE", 
+    }),
+    fixedWindow({
+      mode: "LIVE",
+      characteristics: ["ip.src"],
+      match:"/generate-playlist",
+      window: "1m",
+      max: 1,
+    }),
+    detectBot({
+      mode: "LIVE",
+      block: [        
+        "AUTOMATED",
+      ],
+      patterns: {
+        remove: [
+          "^curl",
+        ],
+      },
+    }),
+  ],
+});
+
+app.use(async (req, res, next) => {
+  try {
+    const decision = await aj.protect(req);
+    if (decision.isDenied()) {
+
+      console.error("Arcjet protection denied", decision);
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Forbidden" }));
+
+    } else {
+      next();
+    }
+  } catch (error) {
+    console.error("Arcjet protection error", error);
+    res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
 
 const refreshAccessToken = async (req, res, next) => {
   try {
